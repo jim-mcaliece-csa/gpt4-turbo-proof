@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Text.Json;
 using Kernel = Microsoft.SemanticKernel.Kernel;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace SemanticKernel_1._1
 {
@@ -56,28 +57,44 @@ namespace SemanticKernel_1._1
             var userInput = "Hi, I'm looking for book suggestions";
             arguments["userInput"] = userInput;
 
-            var bot_answer = await chatFunction.InvokeAsync(kernel, arguments);
+            StringBuilder bot_answer = new StringBuilder(); // await chatFunction.InvokeAsync(kernel, arguments);
 
-            history += $"\nUser: {userInput}\nAI: {bot_answer}\n";
+            await foreach (var s in chatFunction.InvokeStreamingAsync<string>(kernel, arguments))
+            {
+                // I would expect to start hitting this point soon after the kernel is launched. However it takes 
+                // as long as without streaming to get here.
+                Console.Write($"{s}");
+                bot_answer.AppendLine(s);
+            }
+
+            history += $"\nUser: {userInput}\nAI: {bot_answer.ToString()}\n";
             arguments["history"] = history;
 
-            Console.WriteLine(history);
+            //Console.WriteLine(history);
 
             Func<string, Task> Chat = async (string input) => {
                 // Save new message in the arguments
                 arguments["userInput"] = input;
 
                 // Process the user message and get an answer
-                var answer = await chatFunction.InvokeAsync(kernel, arguments);
+                StringBuilder answer = new StringBuilder();// await chatFunction.InvokeAsync(kernel, arguments);
+
+                await foreach (var s in chatFunction.InvokeStreamingAsync<string>(kernel, arguments))
+                {
+                    // I would expect to start hitting this point soon after the kernel is launched. However it takes 
+                    // as long as without streaming to get here.
+                    Console.Write($"{s}");
+                    answer.AppendLine(s);
+                }
 
                 // Append the new interaction to the chat history
-                var result = $"\nUser: {input}\nAI: {answer}\n";
+                var result = $"\nUser: {input}\nAI: {answer.ToString()}\n";
                 history += result;
 
                 arguments["history"] = history;
 
                 // Show the response
-                Console.WriteLine(result);
+                //Console.WriteLine(result);
             };
 
             await Chat("I would like a non-fiction book suggestion about Greece history. Please only list one book.");
